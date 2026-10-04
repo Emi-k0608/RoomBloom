@@ -31,7 +31,8 @@
         big: [943, 981, 47, 75, 916, 858]
     };
     // Mirrors the current backend cost; the snapshot does not expose reward prices yet.
-    const RUG_COST = 50;
+    const RUG_COST = 30;
+    const BIG_BEAVER_COST = 50;
     let timer;
     let currentSnapshot;
     let lastEventVersion;
@@ -114,17 +115,35 @@
             chore.completedToday || completedChoreIds.has(chore.choreId);
         const completedCount = activeChores.filter(isChoreCompleted).length;
 
-        renderReward(rugReward, unlockedItemIds.has('rug'), RUG_COST, points, 'Colorful Rug');
-        root.querySelector('.rug').classList.toggle('unlocked', unlockedItemIds.has('rug'));
+        // Colorful Rug
+        const isRugUnlocked = unlockedItemIds.has('rug');
 
-        // Growth is visual-only in the prototype; leave it unavailable until the backend supports it.
-        growReward.disabled = true;
-        growReward.classList.add('is-locked');
-        growReward.classList.remove('is-ready', 'is-applied');
-        growReward.querySelector('.reward-lock').src = 'assets/lock.svg';
-        growReward.querySelector('.reward-state').textContent = 'Coming soon';
-        growReward.querySelector('.reward-action').textContent = 'Not available yet';
-        growReward.setAttribute('aria-label', 'Big Beaver: Not available yet');
+        renderReward(
+            rugReward,
+            isRugUnlocked,
+            RUG_COST,
+            points,
+            'Colorful Rug'
+        );
+        root.querySelector('.rug')
+            .classList.toggle('unlocked', isRugUnlocked);
+
+        // Big Beaver
+        const isBigBeaverUnlocked =
+            unlockedItemIds.has('big-beaver');
+
+        renderReward(
+            growReward,
+            isBigBeaverUnlocked,
+            BIG_BEAVER_COST,
+            points,
+            'Big Beaver'
+        );
+
+        // Big Beaver
+        if (isBigBeaverUnlocked) {
+            setPose('big');
+        }
 
         const taskCount = root.querySelector('.task-count');
         if (taskCount) {
@@ -156,7 +175,7 @@
         timer = setTimeout(() => {
             room.classList.remove('happy');
             confetti.remove();
-            setPose('default');
+            setPose(getRestingPose());
             room.setAttribute('aria-label', 'Mochi is resting comfortably in your shared room');
         }, 1900);
     }
@@ -195,13 +214,41 @@
     rugReward.addEventListener('click', async () => {
         rugReward.disabled = true;
         try {
-            const snapshot = await apiRequest('/api/rooms/demo/items/rug/unlock', 'POST');
+            const snapshot = await apiRequest('/api/rooms/demo/rewards/rug/unlock', 'POST');
             render(snapshot);
             status.textContent = `A cozy rug for everyone! ${RUG_COST} points spent.`;
             celebrate('celebrate');
         } catch (error) {
             console.error('Unlock rug failed:', error);
             status.textContent = 'Failed to unlock rug. Check if you have enough points.';
+            if (currentSnapshot) {
+                render(currentSnapshot);
+            }
+        }
+    });
+
+    growReward.addEventListener('click', async () => {
+        growReward.disabled = true;
+
+        try {
+            const snapshot = await apiRequest(
+                '/api/rooms/demo/rewards/big-beaver/unlock',
+                'POST'
+            );
+
+            render(snapshot);
+
+            status.textContent =
+                `Mochi grew bigger! ${BIG_BEAVER_COST} points spent.`;
+
+            celebrate('big');
+
+        } catch (error) {
+            console.error('Unlock Big Beaver failed:', error);
+
+            status.textContent =
+                'Failed to unlock Big Beaver. Check if you have enough points.';
+
             if (currentSnapshot) {
                 render(currentSnapshot);
             }
@@ -257,6 +304,15 @@
     eventSource.onerror = error => {
         console.warn('SSE connection interrupted; the browser will retry automatically.', error);
     };
+
+    function getRestingPose() {
+        const unlockedItemIds =
+            currentSnapshot?.unlockedItemIds || [];
+
+        return unlockedItemIds.includes('big-beaver')
+            ? 'big'
+            : 'default';
+    }
 
     loadInitialState();
 })();
