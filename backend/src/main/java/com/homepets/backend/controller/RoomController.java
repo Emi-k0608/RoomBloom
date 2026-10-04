@@ -105,16 +105,36 @@ public class RoomController {
         return ResponseEntity.ok(roomService.getSnapshot());
     }
 
-    @PostMapping("/items/rug/unlock")
-    public ResponseEntity<?> unlockRug() {
-        RoomService.RugUnlockResult result = roomService.unlockRug();
-        if (result == RoomService.RugUnlockResult.INSUFFICIENT_POINTS) {
-            return ResponseEntity.status(HttpStatus.CONFLICT)
-                    .body(java.util.Map.of("error", "Insufficient points to unlock rug."));
+    @PostMapping("/rewards/{rewardId}/unlock")
+    public ResponseEntity<?> unlockReward(@PathVariable String rewardId) {
+        // unlock method
+        RoomService.RewardUnlockResult result =
+                roomService.unlockReward(rewardId);
+
+        // UNKNOWN_REWARD
+        if (result == RoomService.RewardUnlockResult.UNKNOWN_REWARD) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(java.util.Map.of(
+                            "error",
+                            "Unknown reward ID: " + rewardId
+                    ));
         }
 
-        if (result == RoomService.RugUnlockResult.UNLOCKED) {
-            log.info("Rug unlocked successfully, triggering broadcast");
+        // INSUFFICIENT_POINTS
+        if (result == RoomService.RewardUnlockResult.INSUFFICIENT_POINTS) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(java.util.Map.of(
+                            "error",
+                            "Insufficient points."
+                    ));
+        }
+
+        // successfully unlock
+        if (result == RoomService.RewardUnlockResult.UNLOCKED) {
+            log.info(
+                    "Reward [{}] unlocked successfully, triggering broadcast",
+                    rewardId
+            );
             broadcastSnapshot();
         }
 
