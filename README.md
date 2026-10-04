@@ -16,9 +16,7 @@ Reward costs are currently defined in the backend reward enum. The frontend also
 ## Technology
 
 - Java 25
-- Spring Boot 4.1.1
-- Gradle
-- Spring Web MVC
+- Spring Boot
 - HTML, CSS, and JavaScript
 - Server-Sent Events (SSE)
 
