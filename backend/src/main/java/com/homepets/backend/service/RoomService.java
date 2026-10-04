@@ -3,6 +3,7 @@ package com.homepets.backend.service;
 import com.homepets.backend.dto.RoomChoreSnapshotDTO;
 import com.homepets.backend.dto.RoomSnapshotDTO;
 import com.homepets.backend.model.ChoreEnum;
+import com.homepets.backend.model.RewardEnum;
 import com.homepets.backend.model.HomePet;
 import com.homepets.backend.model.HomePetRoom;
 import com.homepets.backend.model.RoomChore;
@@ -24,7 +25,6 @@ public class RoomService {
     private static final Logger log = LoggerFactory.getLogger(RoomService.class);
 
     private static final ZoneId ROOM_ZONE = ZoneId.of("Asia/Taipei");
-    private static final int RUG_COST = 50;
 
     private final HomePetRoom demoRoom;
     private final Set<String> unlockedItemIds = new HashSet<>();
@@ -96,22 +96,37 @@ public class RoomService {
         return ChoreCompletionResult.COMPLETED;
     }
 
-    public synchronized RugUnlockResult unlockRug() {
-        if (unlockedItemIds.contains("rug")) {
-            log.info("Rug is already unlocked");
-            return RugUnlockResult.ALREADY_UNLOCKED;
-        }
-        if (!demoRoom.spendPoints(RUG_COST)) {
-            log.info("Cannot unlock rug: insufficient points (required={}, available={})",
-                    RUG_COST, demoRoom.getAvailablePoints());
-            return RugUnlockResult.INSUFFICIENT_POINTS;
-        }
+    public synchronized RewardUnlockResult unlockReward(String rewardId) {
+        // search Reward
+        RewardEnum reward = RewardEnum.getById(rewardId);
 
-        unlockedItemIds.add("rug");
+        // null check
+        if (reward == null) {
+            log.info("Unknown reward [{}]", rewardId);
+            return RewardUnlockResult.UNKNOWN_REWARD;
+        }
+        // Confirm already Unlock
+        if (unlockedItemIds.contains(reward.getId())) {
+            log.info("Reward [{}] is already unlocked", rewardId);
+            return RewardUnlockResult.ALREADY_UNLOCKED;
+        }
+        // Compare current points and rewards cost
+        if (!demoRoom.spendPoints(reward.getCost())) {
+            log.info(
+                    "Cannot unlock reward [{}]: insufficient points",
+                    rewardId
+            );
+            return RewardUnlockResult.INSUFFICIENT_POINTS;
+        }
+        // Store unlocked item
+        unlockedItemIds.add(reward.getId());
         version++;
-        log.info("Unlocked rug for {} points (remaining={}, version={})",
-                RUG_COST, demoRoom.getAvailablePoints(), version);
-        return RugUnlockResult.UNLOCKED;
+        log.info(
+                "Unlocked reward [{}] for {} points",
+                rewardId,
+                reward.getCost()
+        );
+        return RewardUnlockResult.UNLOCKED;
     }
 
     public synchronized void resetDemo() {
@@ -147,9 +162,10 @@ public class RoomService {
         DISABLED
     }
 
-    public enum RugUnlockResult {
+    public enum RewardUnlockResult {
         UNLOCKED,
         ALREADY_UNLOCKED,
-        INSUFFICIENT_POINTS
+        INSUFFICIENT_POINTS,
+        UNKNOWN_REWARD
     }
 }
