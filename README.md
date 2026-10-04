@@ -71,12 +71,6 @@ When the application starts, open <http://localhost:8080/>.
 
 Set breakpoints in the Java source, then start the `BackendApplication` run configuration with **Debug**. You can also debug frontend behavior using the browser's Developer Tools and inspect the Console, Network requests, and the `/subscribe` EventStream.
 
-## Run tests
-
-There are currently no project test source files. To run the Gradle test task in IntelliJ IDEA, open the Gradle tool window and run **Tasks > verification > test**.
-
-To add tests, create them under `backend/src/test/java` and run a test class or method using the gutter icons in the editor. Service tests are a good starting point for chore completion, reward costs, insufficient-points behavior, and resetting the demo room.
-
 ## API
 
 All endpoints currently operate on the single demo room at `/api/rooms/demo`.
