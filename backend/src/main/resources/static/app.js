@@ -102,7 +102,7 @@
 
             const completed = chore.completedToday || completedChoreIds.has(choreId);
             button.disabled = !chore.canComplete;
-            button.textContent = completed ? '✓ Done' : chore.enabled ? 'Done' : 'Unavailable';
+            button.textContent = completed ? 'Done' : chore.enabled ? 'Done' : 'Unavailable';
             button.setAttribute('aria-label', `${completed ? 'Completed' : 'Complete'}: ${chore.title}`);
             row.classList.toggle('is-completed', completed);
             row.querySelector('.quest-copy p').textContent = chore.enabled
@@ -331,4 +331,34 @@
     }
 
     loadInitialState();
+    // Keep chore poses and room cleanup in sync with Java snapshots.
+    let lastCompletedChorePose;
+    const originalRender = render;
+    getRestingPose = function () {
+        if ((currentSnapshot?.unlockedItemIds || []).includes('big-beaver')) return 'big';
+        return lastCompletedChorePose || 'default';
+    };
+    render = function (snapshot) {
+        const completed = snapshot.completedChoreIds || [];
+        const previous = currentSnapshot?.completedChoreIds || [];
+        const latest = completed.filter(id => !previous.includes(id)).pop();
+        if (!completed.length) lastCompletedChorePose = undefined;
+        else if (latest) lastCompletedChorePose = chorePoses[latest] || 'love';
+        else if (!lastCompletedChorePose) lastCompletedChorePose = chorePoses[completed[completed.length - 1]] || 'love';
+        const reset = currentSnapshot && completed.length === 0 && (snapshot.unlockedItemIds || []).length === 0 && snapshot.points === 0;
+        if (reset) {
+            clearTimeout(timer);
+            room.classList.remove('happy');
+            room.querySelector('.confetti')?.remove();
+        }
+        originalRender(snapshot);
+        room.querySelectorAll('[data-cleanup]').forEach(layer => {
+            const id = choreIdsByIndex[Number(layer.dataset.cleanup)] || layer.dataset.cleanup;
+            layer.classList.toggle('cleaned', completed.includes(id));
+        });
+        room.classList.toggle('vacuumed', completed.includes('vacuum'));
+        room.classList.toggle('all-clean', choreIdsByIndex.every(id => completed.includes(id)));
+        room.classList.toggle('grown', (snapshot.unlockedItemIds || []).includes('big-beaver'));
+        if (!room.classList.contains('happy')) setPose(getRestingPose());
+    };
 })();
