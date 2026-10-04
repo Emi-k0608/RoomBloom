@@ -5,8 +5,8 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <title>RoomBloom — Prototype</title>
-    <link rel="stylesheet" href="styles.css">
-    <script defer src="app.js"></script>
+    <link rel="stylesheet" href="styles.css?v=chore-pose-2">
+    <script defer src="app.js?v=chore-pose-2"></script>
 </head>
 
 <body>
@@ -18,7 +18,7 @@
                     <div class="brand">RoomBloom</div>
                     <div class="tag">SMALL ACTS. SHARED JOY.</div>
                 </div>
-                <div class="house">EmWiMi House · Winnie</div>
+                <div class="house">EmWiMi House</div>
             </header>
             <main class="desktop-grid">
                 <div class="pet-panel">
@@ -35,7 +35,18 @@
                             <div></div>
                         </div>
                         <div class="floor"></div>
-                        <img class="room-shadow" src="assets/shadow.svg" alt="" aria-hidden="true"><div class="rug"></div>
+                        <img class="room-shadow" src="assets/shadow.svg" alt="" aria-hidden="true">
+                        <div class="rug"></div>
+                        <div class="cleanup-layer" aria-hidden="true">
+                            <img class="cleanup-prop paper" data-cleanup="0" src="assets/crumpled-paper.png" alt=""
+                                draggable="false">
+                            <img class="cleanup-prop can" data-cleanup="0" src="assets/empty-can.png" alt=""
+                                draggable="false">
+                            <img class="cleanup-prop dishes" data-cleanup="1" src="assets/dirty-dishes.png" alt=""
+                                draggable="false">
+                            <div class="dust" data-cleanup="2"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+                            <div class="clean-sparkles"><span>✦</span><span>✧</span><span>✦</span></div>
+                        </div>
                         <div class="heart" aria-hidden="true">♥</div>
                         <div class="pet" aria-hidden="true"><img class="beaver-illustration" src="assets/default.png"
                                 alt="" width="800" height="800" draggable="false"></div>
@@ -55,7 +66,8 @@
                             aria-label="Complete: Take out the trash">Done</button>
                     </div>
                     <div class="quest">
-                        <div class="quest-icon"><img src="assets/chore-silverware-clean.svg" alt="" aria-hidden="true"></div>
+                        <div class="quest-icon"><img src="assets/chore-silverware-clean.svg" alt="" aria-hidden="true">
+                        </div>
                         <div class="quest-copy">
                             <h3>Wash dishes</h3>
                             <p>+30 shared points</p>
@@ -73,14 +85,20 @@
                     <div class="section-label treats-label">LITTLE TREATS FOR MOCHI</div>
                     <div class="reward-grid">
                         <button class="reward unlock" type="button" disabled>
-                            <span class="reward-badge"><img class="reward-lock" src="assets/lock.svg" alt="" aria-hidden="true"><span class="reward-check" aria-hidden="true">✓</span> <span class="reward-state">Locked</span></span>
-                            <span class="reward-heading"><span class="reward-name">Colorful Rug</span><span class="reward-price">30 pts</span></span>
+                            <span class="reward-badge"><img class="reward-lock" src="assets/lock.svg" alt=""
+                                    aria-hidden="true"><span class="reward-check" aria-hidden="true"></span> <span
+                                    class="reward-state">Locked</span></span>
+                            <span class="reward-heading"><span class="reward-name">Colorful Rug</span><span
+                                    class="reward-price">30 pts</span></span>
                             <img class="reward-art rug-art" src="assets/rug.png" alt="Pastel rainbow rug">
                             <span class="reward-action"></span>
                         </button>
                         <button class="reward grow" type="button" disabled>
-                            <span class="reward-badge"><img class="reward-lock" src="assets/lock.svg" alt="" aria-hidden="true"><span class="reward-check" aria-hidden="true">✓</span> <span class="reward-state">Locked</span></span>
-                            <span class="reward-heading"><span class="reward-name">Big Beaver</span><span class="reward-price">50 pts</span></span>
+                            <span class="reward-badge"><img class="reward-lock" src="assets/lock.svg" alt=""
+                                    aria-hidden="true"><span class="reward-check" aria-hidden="true"></span> <span
+                                    class="reward-state">Locked</span></span>
+                            <span class="reward-heading"><span class="reward-name">Big Beaver</span><span
+                                    class="reward-price">50 pts</span></span>
                             <img class="reward-art" src="assets/big-preview.png" alt="Big Mochi">
                             <span class="reward-action"></span>
                         </button>
