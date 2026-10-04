@@ -1,14 +1,41 @@
-// Home Pet API-Integrated Frontend
+// RoomBloom frontend connected to the demo room API.
 (() => {
     const root = document.getElementById('home-pet-beaver');
     const room = root.querySelector('.room');
-    const choreList = root.querySelector('.quest-list');
-    const unlock = root.querySelector('.unlock');
     const status = root.querySelector('.status');
-    const choreIcons = { trash: '🗑', dishes: '🍽', vacuum: '🧹' };
+    const choreButtons = [...root.querySelectorAll('[data-chore]')];
+    const rugReward = root.querySelector('.unlock');
+    const growReward = root.querySelector('.grow');
+    const choreIdsByIndex = ['trash', 'dishes', 'vacuum'];
+    const chorePoses = {
+        trash: 'normal',
+        dishes: 'sparkle',
+        vacuum: 'love'
+    };
+    const poseFiles = {
+        default: 'default.png',
+        relaxed: 'hi.png',
+        normal: 'usual.png',
+        love: 'heart.png',
+        sparkle: 'bright.png',
+        celebrate: 'raise hand.png',
+        big: 'level up.png'
+    };
+    const poseBounds = {
+        default: [1024, 1024, 86, 147, 994, 893],
+        relaxed: [800, 800, 109, 150, 730, 661],
+        normal: [800, 800, 108, 149, 730, 663],
+        love: [800, 800, 109, 150, 730, 661],
+        sparkle: [800, 800, 110, 151, 729, 660],
+        celebrate: [800, 800, 96, 150, 729, 661],
+        big: [943, 981, 47, 75, 916, 858]
+    };
+    // Mirrors the current backend cost; the snapshot does not expose reward prices yet.
+    const RUG_COST = 50;
     let timer;
+    let currentSnapshot;
+    let lastEventVersion;
 
-    // Send API requests through one helper.
     async function apiRequest(path, method = 'GET') {
         const response = await fetch(path, { method });
         if (!response.ok) {
@@ -17,86 +44,97 @@
         return response.json();
     }
 
-    // Render the UI from the backend snapshot.
-    function render(snapshot) {
-        const points = snapshot.points;
-        const completedChoreIds = snapshot.completedChoreIds || [];
-        const chores = snapshot.chores || [];
-        const isRugUnlocked = (snapshot.unlockedItemIds || []).includes('rug');
+    function setPose(pose) {
+        const image = root.querySelector('.beaver-illustration');
+        const [width, height, left, top, right, bottom] = poseBounds[pose];
+        const [defaultWidth, defaultHeight, defaultLeft, defaultTop, defaultRight, defaultBottom] = poseBounds.default;
+        const factor = ((defaultBottom - defaultTop) / defaultHeight) / (bottom - top);
+        const center = (defaultLeft + defaultRight) / 2 / defaultWidth;
 
-        // 1. Update the shared point total.
+        image.style.width = `${width * factor * 100}%`;
+        image.style.height = `${height * factor * 100}%`;
+        image.style.left = `${(center - (left + right) / 2 * factor) * 100}%`;
+        image.style.top = `${(defaultBottom / defaultHeight - bottom * factor) * 100}%`;
+        image.src = `assets/${poseFiles[pose]}`;
+    }
+
+    function renderReward(card, applied, cost, points, name) {
+        const ready = !applied && points >= cost;
+        card.disabled = !ready;
+        card.classList.toggle('is-locked', !applied && !ready);
+        card.classList.toggle('is-ready', ready);
+        card.classList.toggle('is-applied', applied);
+        card.querySelector('.reward-lock').src = ready ? 'assets/lock-open.svg' : 'assets/lock.svg';
+        card.querySelector('.reward-state').textContent = applied ? 'Applied' : ready ? 'Unlocked' : 'Locked';
+        card.querySelector('.reward-price').textContent = `${cost} pts`;
+        card.querySelector('.reward-action').textContent = applied
+            ? ''
+            : ready
+                ? 'Apply to Mochi →'
+                : `${cost - points} pts to unlock`;
+        card.setAttribute(
+            'aria-label',
+            `${name}: ${applied ? 'Applied' : ready ? 'Unlocked. Apply to Mochi' : `Locked. ${cost - points} more points needed`}`
+        );
+    }
+
+    function render(snapshot) {
+        currentSnapshot = snapshot;
+        const points = snapshot.points;
+        const chores = snapshot.chores || [];
+        const choresById = new Map(chores.map(chore => [chore.choreId, chore]));
+        const completedChoreIds = new Set(snapshot.completedChoreIds || []);
+        const unlockedItemIds = new Set(snapshot.unlockedItemIds || []);
+
         root.querySelector('.hp-score').textContent = points;
 
-        // 2. Render chores provided by the backend.
-        choreList.replaceChildren(...chores.map(createChoreRow));
+        choreButtons.forEach(button => {
+            const choreId = choreIdsByIndex[Number(button.dataset.chore)];
+            const chore = choresById.get(choreId);
+            const row = button.closest('.quest');
 
-        // 3. Update the rug unlock button.
-        unlock.disabled = isRugUnlocked || points < 50;
-        unlock.textContent = isRugUnlocked
-            ? '✓ Rug unlocked'
-            : points >= 50
-                ? 'Unlock rug · 50 pts'
-                : `${50 - points} more pts to unlock`;
+            if (!chore) {
+                button.disabled = true;
+                row.classList.remove('is-completed');
+                return;
+            }
 
-        // 4. Update the rug's appearance in the room.
-        root.querySelector('.rug').classList.toggle('unlocked', isRugUnlocked);
+            const completed = chore.completedToday || completedChoreIds.has(choreId);
+            button.disabled = !chore.canComplete;
+            button.textContent = completed ? '✓ Done' : chore.enabled ? 'Done' : 'Unavailable';
+            button.setAttribute('aria-label', `${completed ? 'Completed' : 'Complete'}: ${chore.title}`);
+            row.classList.toggle('is-completed', completed);
+            row.querySelector('.quest-copy p').textContent = chore.enabled
+                ? `+${chore.rewardPoints} shared points`
+                : 'Not active in this room';
+        });
 
-        // 5. Update the completed quest count.
         const activeChores = chores.filter(chore => chore.enabled);
-        const completedCount = activeChores.filter(chore => chore.completedToday).length;
-        root.querySelector('.task-count').textContent = `${completedCount} of ${activeChores.length} quests completed`;
-    }
+        const isChoreCompleted = chore =>
+            chore.completedToday || completedChoreIds.has(chore.choreId);
+        const completedCount = activeChores.filter(isChoreCompleted).length;
 
-    function createChoreRow(chore) {
-        const row = document.createElement('div');
-        row.className = 'quest';
+        renderReward(rugReward, unlockedItemIds.has('rug'), RUG_COST, points, 'Colorful Rug');
+        root.querySelector('.rug').classList.toggle('unlocked', unlockedItemIds.has('rug'));
 
-        const icon = document.createElement('div');
-        icon.className = 'quest-icon';
-        const iconText = document.createElement('span');
-        iconText.setAttribute('aria-hidden', 'true');
-        iconText.textContent = choreIcons[chore.choreId] || '✦';
-        icon.append(iconText);
+        // Growth is visual-only in the prototype; leave it unavailable until the backend supports it.
+        growReward.disabled = true;
+        growReward.classList.add('is-locked');
+        growReward.classList.remove('is-ready', 'is-applied');
+        growReward.querySelector('.reward-lock').src = 'assets/lock.svg';
+        growReward.querySelector('.reward-state').textContent = 'Coming soon';
+        growReward.querySelector('.reward-action').textContent = 'Not available yet';
+        growReward.setAttribute('aria-label', 'Big Beaver: Not available yet');
 
-        const copy = document.createElement('div');
-        copy.className = 'quest-copy';
-        const title = document.createElement('h3');
-        title.textContent = chore.title;
-        const reward = document.createElement('p');
-        reward.textContent = chore.enabled
-            ? `+${chore.rewardPoints} shared points`
-            : 'Not active in this room';
-        copy.append(title, reward);
-
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'chore cursor-interaction';
-        button.disabled = !chore.canComplete;
-        button.textContent = chore.completedToday ? '✓ Done' : chore.enabled ? 'Done' : 'Unavailable';
-        button.setAttribute('aria-label', `Complete: ${chore.title}`);
-        button.addEventListener('click', () => completeChore(chore, button));
-
-        row.append(icon, copy, button);
-        return row;
-    }
-
-    async function completeChore(chore, button) {
-        button.disabled = true;
-        try {
-            const snapshot = await apiRequest(`/api/rooms/demo/chores/${encodeURIComponent(chore.choreId)}/complete`, 'POST');
-            render(snapshot);
-            status.textContent = `${chore.title} completed! +${chore.rewardPoints} points for our home.`;
-            celebrate();
-        } catch (err) {
-            console.error('Complete chore failed:', err);
-            status.textContent = 'Failed to complete chore. Please retry.';
-            button.disabled = false;
+        const taskCount = root.querySelector('.task-count');
+        if (taskCount) {
+            taskCount.textContent = `${completedCount} of ${activeChores.length} quests completed`;
         }
     }
 
-    // Play the celebration animation.
-    function celebrate() {
+    function celebrate(pose = 'love') {
         clearTimeout(timer);
+        setPose(pose);
         room.classList.remove('happy');
         void room.offsetWidth;
         room.classList.add('happy');
@@ -118,71 +156,107 @@
         timer = setTimeout(() => {
             room.classList.remove('happy');
             confetti.remove();
+            setPose('default');
             room.setAttribute('aria-label', 'Mochi is resting comfortably in your shared room');
         }, 1900);
     }
 
-    // 1. Load the initial room state.
+    async function completeChore(choreId, button) {
+        button.disabled = true;
+        try {
+            const snapshot = await apiRequest(
+                `/api/rooms/demo/chores/${encodeURIComponent(choreId)}/complete`,
+                'POST'
+            );
+            render(snapshot);
+            const chore = snapshot.chores.find(candidate => candidate.choreId === choreId);
+            status.textContent = chore
+                ? `${chore.title} completed! +${chore.rewardPoints} points for our home.`
+                : 'Chore state updated.';
+            celebrate(chorePoses[choreId] || 'love');
+        } catch (error) {
+            console.error('Complete chore failed:', error);
+            status.textContent = 'Failed to complete chore. Please retry.';
+            if (currentSnapshot) {
+                render(currentSnapshot);
+            } else {
+                button.disabled = false;
+            }
+        }
+    }
+
+    choreButtons.forEach(button => {
+        const choreId = choreIdsByIndex[Number(button.dataset.chore)];
+        if (choreId) {
+            button.addEventListener('click', () => completeChore(choreId, button));
+        }
+    });
+
+    rugReward.addEventListener('click', async () => {
+        rugReward.disabled = true;
+        try {
+            const snapshot = await apiRequest('/api/rooms/demo/items/rug/unlock', 'POST');
+            render(snapshot);
+            status.textContent = `A cozy rug for everyone! ${RUG_COST} points spent.`;
+            celebrate('celebrate');
+        } catch (error) {
+            console.error('Unlock rug failed:', error);
+            status.textContent = 'Failed to unlock rug. Check if you have enough points.';
+            if (currentSnapshot) {
+                render(currentSnapshot);
+            }
+        }
+    });
+
+    const resetButton = root.querySelector('.reset');
+    if (resetButton) {
+        resetButton.addEventListener('click', async () => {
+            try {
+                const snapshot = await apiRequest('/api/rooms/demo/reset', 'POST');
+                clearTimeout(timer);
+                room.classList.remove('happy');
+                room.querySelector('.confetti')?.remove();
+                setPose('default');
+                status.textContent = 'A little teamwork makes Mochi’s day.';
+                render(snapshot);
+            } catch (error) {
+                console.error('Reset failed:', error);
+                status.textContent = 'Failed to reset the demo room. Please retry.';
+            }
+        });
+    }
+
     async function loadInitialState() {
         try {
             const snapshot = await apiRequest('/api/rooms/demo', 'GET');
             render(snapshot);
-        } catch (err) {
-            console.error('Failed to load room state:', err);
+        } catch (error) {
+            console.error('Failed to load room state:', error);
             status.textContent = 'Error loading room data from server.';
         }
     }
 
-    // 3. Handle rug unlocking.
-    unlock.addEventListener('click', async () => {
-        unlock.disabled = true; 
+    const eventSource = new EventSource('/api/rooms/demo/subscribe');
+    eventSource.addEventListener('room-update', event => {
         try {
-            const snapshot = await apiRequest('/api/rooms/demo/items/rug/unlock', 'POST');
-            render(snapshot);
-            status.textContent = 'A cozy rug for everyone! 50 points spent.';
-            celebrate();
-        } catch (err) {
-            console.error('Unlock rug failed:', err);
-            status.textContent = 'Failed to unlock rug. Check if you have enough points.';
-            unlock.disabled = false;
-        }
-    });
-
-    // 4. Reset the demo room.
-    root.querySelector('.reset')?.addEventListener('click', async () => {
-        try {
-            const snapshot = await apiRequest('/api/rooms/demo/reset', 'POST');
-            clearTimeout(timer);
-            room.classList.remove('happy');
-            room.querySelector('.confetti')?.remove();
-            status.textContent = 'A little teamwork makes Mochi’s day.';
-            render(snapshot);
-        } catch (err) {
-            console.error('Reset failed:', err);
-        }
-    });
-
-    // Load the initial state.
-    loadInitialState();
-    // Open an SSE connection to receive real-time updates.
-    function setupRealtimeSubscription() {
-        const eventSource = new EventSource('/api/rooms/demo/subscribe');
-
-        // Listen for the 'room-update' event sent by the backend.
-        eventSource.addEventListener('room-update', (event) => {
             const snapshot = JSON.parse(event.data);
-            console.log('Received real-time room update:', snapshot);
-
-            // Render the updated state and play the celebration animation.
+            const shouldCelebrate = lastEventVersion !== undefined &&
+                lastEventVersion !== snapshot.version &&
+                currentSnapshot?.version !== snapshot.version;
+            lastEventVersion = snapshot.version;
             render(snapshot);
-            celebrate();
-        });
+            if (shouldCelebrate) {
+                celebrate();
+            }
+        } catch (error) {
+            console.error('Failed to process room update:', error);
+            status.textContent = 'Could not process a room update.';
+        }
+    });
 
-        eventSource.onerror = (err) => {
-            console.warn('SSE 連線中斷，嘗試自動重連...', err);
-        };
-    }
+    eventSource.onerror = error => {
+        console.warn('SSE connection interrupted; the browser will retry automatically.', error);
+    };
 
-// Start the SSE subscription.
-    setupRealtimeSubscription();
+    loadInitialState();
 })();
