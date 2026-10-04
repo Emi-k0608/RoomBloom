@@ -193,6 +193,8 @@
                 ? `${chore.title} completed! +${chore.rewardPoints} points for our home.`
                 : 'Chore state updated.';
             celebrate(chorePoses[choreId] || 'love');
+            // sound
+            playSound(greatJobSound);
         } catch (error) {
             console.error('Complete chore failed:', error);
             status.textContent = 'Failed to complete chore. Please retry.';
@@ -218,6 +220,8 @@
             render(snapshot);
             status.textContent = `A cozy rug for everyone! ${RUG_COST} points spent.`;
             celebrate('celebrate');
+            // sound
+            playSound(newRewardSound);
         } catch (error) {
             console.error('Unlock rug failed:', error);
             status.textContent = 'Failed to unlock rug. Check if you have enough points.';
@@ -242,7 +246,8 @@
                 `Mochi grew bigger! ${BIG_BEAVER_COST} points spent.`;
 
             celebrate('big');
-
+            // sound
+            playSound(newRewardSound);
         } catch (error) {
             console.error('Unlock Big Beaver failed:', error);
 
@@ -312,6 +317,17 @@
         return unlockedItemIds.includes('big-beaver')
             ? 'big'
             : 'default';
+    }
+
+    const greatJobSound = new Audio('/sounds/great-job.mp3');
+    const newRewardSound = new Audio('/sounds/new-reward.mp3');
+
+    function playSound(sound) {
+        sound.currentTime = 0;
+
+        sound.play().catch(error => {
+            console.error('Sound playback failed:', error);
+        });
     }
 
     loadInitialState();
